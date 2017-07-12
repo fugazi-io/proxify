@@ -19,11 +19,25 @@ the fugazi terminal.
 npm install @fugazi/proxify
 ```
 
+## Build
+```bash
+npm run compile
+// or
+node_modules/typescript/bin/tsc -p scripts
+```
+
 ## Running
 ```bash
 npm start [OPTIONS] descriptor
 // OR
 node scripts/bin/index.js [OPTIONS] descriptor
+```
+
+If you want to pass arguments then:
+```bash
+npm run start -- --listen-host 3232
+// or
+node scripts/bin/index.js --listen-host 3232
 ```
 
 #### descriptor

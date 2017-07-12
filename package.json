@@ -5,6 +5,7 @@
   "main": "scripts/bin/index.js",
   "types": "scripts/bin/index.d.ts",
   "scripts": {
+    "compile": "node_modules/typescript/bin/tsc -p scripts",
     "start": "node scripts/bin/index.js"
   },
   "keywords": [
@@ -26,7 +27,7 @@
   },
   "homepage": "https://github.com/fugazi-io/proxify#readme",
   "dependencies": {
-    "@fugazi/connector": "^1.0.12",
+    "@fugazi/connector": "^1.0.14",
     "@types/commander": "^2.3.31",
     "@types/request": "0.0.44",
     "commander": "^2.9.0",
