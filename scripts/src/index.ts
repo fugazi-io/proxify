@@ -2,14 +2,18 @@
  * Created by nitzan on 16/06/2017.
  */
 
-import * as http from "http";
 import * as request from "request";
-import * as httpProxy from "http-proxy";
 import { readFile, existsSync } from "fs";
 
 import * as connector from "@fugazi/connector";
 
 import program = require("commander");
+
+import cors = require("cors");
+import express = require("express");
+
+import { middleware as proxyMiddleware } from "./middleware/proxy";
+import { middleware as descriptorMiddleware } from "./middleware/descriptor";
 
 const pjson = require("../../package.json");
 const VERSION = pjson.version as string,
@@ -31,19 +35,14 @@ const listenHost = program.listenHost || DEFAULT_HOST;
 const listenPort = Number(program.listenPort) || DEFAULT_PORT;
 const listenUrl = `http://${ listenHost }:${ listenPort }`;
 
-let remoteOrigin: string;
-let server: http.Server;
-let proxy: httpProxy.ProxyServer;
-let descriptor: connector.descriptors.RootModule;
-let descriptorLocalUrl: string;
-let descriptorFileName: string;
+let app: express.Express;
 
 if (program.args[0].startsWith("http")) {
 	const url = program.args[0];
-	descriptorFileName = url.substring(url.lastIndexOf("/") + 1);
+	const descriptorFileName = url.substring(url.lastIndexOf("/") + 1);
 
 	getDescriptorFromUrl(url)
-		.then(init)
+		.then(init.bind(null, descriptorFileName))
 		.catch(error => {
 			console.log("failed to load descriptor from: " + url);
 			console.log("request error:");
@@ -51,10 +50,10 @@ if (program.args[0].startsWith("http")) {
 		});
 } else if (existsSync(program.args[0])) {
 	const path = program.args[0];
-	descriptorFileName = path.substring(path.lastIndexOf("/") + 1);
+	const descriptorFileName = path.substring(path.lastIndexOf("/") + 1);
 
 	getDescriptorFromFile(path)
-		.then(init)
+		.then(init.bind(null, descriptorFileName))
 		.catch(error => {
 			console.log("failed to load descriptor from: " + path);
 			console.log("request error:");
@@ -65,50 +64,22 @@ if (program.args[0].startsWith("http")) {
 	program.help();
 }
 
-function init(rootDescriptor: connector.descriptors.RootModule) {
-	remoteOrigin = rootDescriptor.remote!.origin;
+function init(descriptorFileName: string, descriptor: connector.descriptors.RootModule) {
+	app = express();
 
-	descriptor = rootDescriptor;
-	descriptorLocalUrl = `${ listenUrl }/${ descriptorFileName }`;
+	const corsMiddleware = cors();
+	app.use(corsMiddleware);
+	app.options("*", corsMiddleware);
+
+	app.use(descriptorMiddleware(descriptorFileName, descriptor));
+
+	const remoteOrigin = descriptor.remote!.origin;
 	descriptor.remote!.origin = listenUrl;
+	app.use(proxyMiddleware(remoteOrigin));
 
-	createAndStartProxy();
-	createAndStartHttpServer();
-}
-
-function writeCorsHeaders(response: http.ServerResponse) {
-	response.setHeader("Access-Control-Allow-Origin", "*");
-	response.setHeader("Access-Control-Allow-Methods", "POST, PUT, DELETE, GET, OPTIONS");
-	response.setHeader("Access-Control-Allow-Headers", "Content-Type");
-}
-
-function createAndStartProxy() {
-	proxy = httpProxy.createProxyServer({
-		target: remoteOrigin
-	});
-
-	proxy.on("proxyRes", (proxyRes, request, response) => {
-		writeCorsHeaders(response);
-	});
-}
-
-function createAndStartHttpServer() {
-	server = http.createServer((request, response) => {
-		if (request.method === "OPTIONS") {
-			writeCorsHeaders(response);
-			response.writeHead(200);
-			response.end();
-		} else if (request.url === "/" + descriptorFileName) {
-			writeCorsHeaders(response);
-			response.writeHead(200, { "Content-Type": "application/json" });
-			response.end(JSON.stringify(descriptor));
-		} else {
-			proxy.web(request, response);
-		}
-	});
-	server.listen(listenPort, listenHost, () => {
+	app.listen(listenPort, listenHost, () => {
 		console.log(`server started, listening to ${ listenHost }:${ listenPort }`);
-		console.log("load module descriptor from: " + descriptorLocalUrl);
+		console.log(`load module descriptor from: ${ listenUrl }/${ descriptorFileName }`);
 	});
 }
 
