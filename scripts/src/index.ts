@@ -23,8 +23,9 @@ const VERSION = pjson.version as string,
 program
 	.version(VERSION)
 	.usage("[options] descriptor-url-or-file")
-	.option("--listen-host [host]", "Host on which the service will listen on")
-	.option("--listen-port [port]", "Port on which the service will listen on")
+	.option("--listen-host host", "Host on which the service will listen on")
+	.option("--listen-port port", "Port on which the service will listen on")
+	.option("--oauth oauth-file-path", "OAuth data file (see ...)")
 	.parse(process.argv);
 
 if (program.args.length !== 1) {
@@ -38,27 +39,11 @@ const listenUrl = `http://${ listenHost }:${ listenPort }`;
 let app: express.Express;
 
 if (program.args[0].startsWith("http")) {
-	const url = program.args[0];
-	const descriptorFileName = url.substring(url.lastIndexOf("/") + 1);
+	getDescriptor(getDescriptorFromUrl);
 
-	getDescriptorFromUrl(url)
-		.then(init.bind(null, descriptorFileName))
-		.catch(error => {
-			console.log("failed to load descriptor from: " + url);
-			console.log("request error:");
-			console.log(error);
-		});
 } else if (existsSync(program.args[0])) {
-	const path = program.args[0];
-	const descriptorFileName = path.substring(path.lastIndexOf("/") + 1);
+	getDescriptor(getDescriptorFromFile);
 
-	getDescriptorFromFile(path)
-		.then(init.bind(null, descriptorFileName))
-		.catch(error => {
-			console.log("failed to load descriptor from: " + path);
-			console.log("request error:");
-			console.log(error);
-		});
 } else {
 	console.log("argument isn't a url nor an existing file");
 	program.help();
@@ -81,6 +66,20 @@ function init(descriptorFileName: string, descriptor: connector.descriptors.Root
 		console.log(`server started, listening to ${ listenHost }:${ listenPort }`);
 		console.log(`load module descriptor from: ${ listenUrl }/${ descriptorFileName }`);
 	});
+}
+
+function getDescriptor(method: (str: string) => Promise<connector.descriptors.RootModule>) {
+	const path = program.args[0];
+	const descriptorFileName = path.substring(path.lastIndexOf("/") + 1);
+
+	method(path)
+        .then(init.bind(null, descriptorFileName))
+        .catch(error => {
+			console.log("failed to load descriptor from: " + path);
+			console.log("request error:");
+			console.log(error);
+		});
+
 }
 
 function getDescriptorFromUrl(url: string): Promise<connector.descriptors.RootModule> {
