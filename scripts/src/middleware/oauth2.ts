@@ -11,92 +11,110 @@ const REDIRECT_URI_PATH = "/oauth2/authorization-callback";
 let BASE_URL: string;
 
 export type OAuthConfig = {
-    client: {
-        id: string;
-        secret: string;
-    },
-    auth: {
-        tokenHost: string;
-        tokenPath?: string;
-        revokePath?: string;
-        authorizeHost?: string;
-        authorizePath?: string;
-    },
-    scope: string | string[];
+	client: {
+		id: string;
+		secret: string;
+	},
+	auth: {
+		tokenHost: string;
+		tokenPath?: string;
+		revokePath?: string;
+		authorizeHost?: string;
+		authorizePath?: string;
+	},
+	scope: string | string[];
+	requestHeaderName?: string;
+	requestParamName?: string;
 }
 
 export function middleware(baseUrl: string, config: OAuthConfig) {
-    BASE_URL = baseUrl;
+	BASE_URL = baseUrl;
 
-    const oauthClient = createOAuthClient(config);
-    let isAuthenticated = false;
+	const oauthClient = createOAuthClient(config);
+	let accessToken: oAuth2.AccessToken | null = null;
 
-    return function handler(request: express.Request, response: express.Response, next: express.NextFunction) {
-        if (request.method === "GET" && request.path === "REDIRECT_URI_PATH") {
-            obtainToken();
-        } else if (isAuthenticated) {
-            continueWithRequest();
-        } else {
-            startAuthenticationFlow(baseUrl, oauthClient, getScope(config));
-        }
-    };
+	return function handler(request: express.Request, response: express.Response, next: express.NextFunction) {
+		if (request.method === "GET" && request.path === "REDIRECT_URI_PATH") {
+			obtainToken(request, response, oauthClient).then(token => {
+				accessToken = token;
+				continueWithRequest(config, accessToken, request, next);
+			});
+		} else if (accessToken != null) {
+			continueWithRequest(config, accessToken, request, next);
+		} else {
+			startAuthenticationFlow(response, oauthClient, getScope(config));
+		}
+	};
 }
 
 function createOAuthClient(config: OAuthConfig): oAuth2.OAuthClient {
-    const options = Object.assign({}, config, { scope: undefined }) as oAuth2.ModuleOptions;
-    return oAuth2.create(options);
+	const options = Object.assign({}, config, { scope: undefined }) as oAuth2.ModuleOptions;
+	return oAuth2.create(options);
 }
 
-function obtainToken(request: express.Request, response: express.Response, oauthClient: oAuth2.OAuthClient) {
-    const code = request.query.code as string;
-    const options = {
-        code,
-        redirect_uri: redirectUri()
-    };
+function obtainToken(request: express.Request, response: express.Response, oauthClient: oAuth2.OAuthClient): PromiseLike<oAuth2.AccessToken> {
+	const code = request.query.code as string;
+	const tokenConfig = {
+		code,
+		redirect_uri: redirectUri()
+	};
 
-    oauthClient.authorizationCode.getToken(options, (error, result) => {
-        if (error) {
-            response.writeHead(200, { "Content-Type": "application/json" });
-            response.end({
-
-            } as connector.components.);
-        }
-    });
+	return oauthClient.authorizationCode.getToken(tokenConfig)
+		.then(result => oauthClient.accessToken.create(result))
+		.catch(error => response.status(200).json({
+				status: connector.clientTypes.ResultStatus.Failure,
+				error: normalizeError(error)
+			} as connector.clientTypes.FailResult));
 }
 
-function continueWithRequest() {
+function continueWithRequest(config: OAuthConfig, accessToken: oAuth2.AccessToken, request: express.Request, next: express.NextFunction) {
+	if (config.requestHeaderName) {
+		request.headers[config.requestHeaderName] = accessToken.toString();
+	} else if (config.requestParamName) {
+		switch (request.method) {
+			case "GET":
+				request.query[config.requestParamName] = accessToken.toString();
+				break;
 
+			case "POST":
+				request.body[config.requestParamName] = accessToken.toString();
+		}
+	}
+
+	return next();
 }
 
-function startAuthenticationFlow(oauthClient: oAuth2.OAuthClient, scope: string) {
-    const authorizationUri = oauthClient.authorizationCode.authorizeURL({
-        redirect_uri: redirectUri(),
-        scope
-    });
-
-    // response with oauth request
+function startAuthenticationFlow(response: express.Response, oauthClient: oAuth2.OAuthClient, scope: string) {
+	const authorizationUri = oauthClient.authorizationCode.authorizeURL({
+		redirect_uri: redirectUri(),
+		scope
+	});
+	return response.status(200).json({
+			status: connector.clientTypes.ResultStatus.OAuth2,
+			authorizationUri: authorizationUri
+		} as connector.clientTypes.OAuth2Result);
 }
 
 function redirectUri() {
-    return (BASE_URL + REDIRECT_URI_PATH).replace(/\/\//g, "/");
+	return (BASE_URL + REDIRECT_URI_PATH).replace(/\/\//g, "/");
 }
 
 function getScope(config: OAuthConfig): string {
-    if (typeof config.scope === "string") {
-        return config.scope;
-    }
+	if (typeof config.scope === "string") {
+		return config.scope;
+	}
 
-    return config.scope.join(",");
+	return config.scope.join(",");
 }
 
 function normalizeError(error: any): string {
-    if (typeof error === "string") {
-        return error;
-    }
+	if (typeof error === "string") {
+		return error;
+	}
 
-    if (error instanceof Error) {
-        return error.message;
-    }
+	if (error instanceof Error) {
+		return error.message;
+	}
 
-    return error.toString();
+	return error.toString();
 }

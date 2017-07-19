@@ -3,16 +3,25 @@
  */
 
 import * as request from "request";
-import { readFile, existsSync } from "fs";
+import { readFile, readFileSync, existsSync } from "fs";
 
 import * as connector from "@fugazi/connector";
 
 import program = require("commander");
+declare module "commander" {
+	interface ICommand {
+		oauth?: string;
+		listenHost?: string;
+		listenPort?: number | string;
+	}
+}
 
 import cors = require("cors");
 import express = require("express");
+import bodyParser = require("body-parser");
 
 import { middleware as proxyMiddleware } from "./middleware/proxy";
+import { middleware as oAuth2Middleware } from "./middleware/oauth2";
 import { middleware as descriptorMiddleware } from "./middleware/descriptor";
 
 const pjson = require("../../package.json");
@@ -40,10 +49,8 @@ let app: express.Express;
 
 if (program.args[0].startsWith("http")) {
 	getDescriptor(getDescriptorFromUrl);
-
 } else if (existsSync(program.args[0])) {
 	getDescriptor(getDescriptorFromFile);
-
 } else {
 	console.log("argument isn't a url nor an existing file");
 	program.help();
@@ -57,6 +64,14 @@ function init(descriptorFileName: string, descriptor: connector.descriptors.Root
 	app.options("*", corsMiddleware);
 
 	app.use(descriptorMiddleware(descriptorFileName, descriptor));
+
+	if (program.oauth) {
+		app.use(bodyParser.json());
+		app.use(bodyParser.urlencoded({ extended: true }));
+
+		const oAuth2Config = JSON.parse(readFileSync(program.oauth, "utf-8"));
+		app.use(oAuth2Middleware(`http://${ listenHost }:${ listenPort }/`, oAuth2Config));
+	}
 
 	const remoteOrigin = descriptor.remote!.origin;
 	descriptor.remote!.origin = listenUrl;
@@ -73,8 +88,8 @@ function getDescriptor(method: (str: string) => Promise<connector.descriptors.Ro
 	const descriptorFileName = path.substring(path.lastIndexOf("/") + 1);
 
 	method(path)
-        .then(init.bind(null, descriptorFileName))
-        .catch(error => {
+		.then(init.bind(null, descriptorFileName))
+		.catch(error => {
 			console.log("failed to load descriptor from: " + path);
 			console.log("request error:");
 			console.log(error);
