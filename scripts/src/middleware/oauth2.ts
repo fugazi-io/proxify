@@ -34,7 +34,7 @@ export function middleware(baseUrl: string, config: OAuthConfig) {
 	let accessToken: oAuth2.AccessToken | null = null;
 
 	return function handler(request: express.Request, response: express.Response, next: express.NextFunction) {
-		if (request.method === "GET" && request.path === "REDIRECT_URI_PATH") {
+		if (request.method === "GET" && request.path === REDIRECT_URI_PATH) {
 			obtainToken(request, response, oauthClient).then(token => {
 				accessToken = token;
 				continueWithRequest(config, accessToken, request, next);
@@ -48,7 +48,10 @@ export function middleware(baseUrl: string, config: OAuthConfig) {
 }
 
 function createOAuthClient(config: OAuthConfig): oAuth2.OAuthClient {
-	const options = Object.assign({}, config, { scope: undefined }) as oAuth2.ModuleOptions;
+	const options = Object.assign({}, config) as oAuth2.ModuleOptions;
+	["scope", "requestHeaderName", "requestParamName"].forEach(key => {
+		delete (options as any)[key];
+	});
 	return oAuth2.create(options);
 }
 
@@ -68,16 +71,17 @@ function obtainToken(request: express.Request, response: express.Response, oauth
 }
 
 function continueWithRequest(config: OAuthConfig, accessToken: oAuth2.AccessToken, request: express.Request, next: express.NextFunction) {
+		console.log("token: ", (accessToken.token as any).access_token);
 	if (config.requestHeaderName) {
-		request.headers[config.requestHeaderName] = accessToken.toString();
+		request.headers[config.requestHeaderName] = (accessToken.token as any).access_token;
 	} else if (config.requestParamName) {
 		switch (request.method) {
 			case "GET":
-				request.query[config.requestParamName] = accessToken.toString();
+				request.query[config.requestParamName] = (accessToken.token as any).access_token;
 				break;
 
 			case "POST":
-				request.body[config.requestParamName] = accessToken.toString();
+				request.body[config.requestParamName] = (accessToken.token as any).access_token;
 		}
 	}
 
@@ -96,7 +100,19 @@ function startAuthenticationFlow(response: express.Response, oauthClient: oAuth2
 }
 
 function redirectUri() {
-	return (BASE_URL + REDIRECT_URI_PATH).replace(/\/\//g, "/");
+	let result = BASE_URL;
+
+	if (!BASE_URL.endsWith("/")) {
+		result += "/";
+	}
+
+	if (REDIRECT_URI_PATH.startsWith("/")) {
+		result += REDIRECT_URI_PATH.substring(1);
+	} else {
+		result += REDIRECT_URI_PATH;
+	}
+
+	return result;
 }
 
 function getScope(config: OAuthConfig): string {
