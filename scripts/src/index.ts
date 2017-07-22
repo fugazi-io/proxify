@@ -32,9 +32,9 @@ const VERSION = pjson.version as string,
 program
 	.version(VERSION)
 	.usage("[options] descriptor-url-or-file")
-	.option("--listen-host host", "Host on which the service will listen on")
-	.option("--listen-port port", "Port on which the service will listen on")
-	.option("--oauth oauth-file-path", "OAuth data file (see ...)")
+	.option("--listen-host <host>", "Host on which the service will listen on")
+	.option("--listen-port <port>", "Port on which the service will listen on")
+	.option("--oauth <oauth-file-path>", "OAuth data file (see ...)")
 	.parse(process.argv);
 
 if (program.args.length !== 1) {
