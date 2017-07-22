@@ -37,7 +37,7 @@ export function middleware(baseUrl: string, config: OAuthConfig) {
 		if (request.method === "GET" && request.path === REDIRECT_URI_PATH) {
 			obtainToken(request, response, oauthClient).then(token => {
 				accessToken = token;
-				continueWithRequest(config, accessToken, request, next);
+				response.status(200).json({ message: "yay" });
 			});
 		} else if (accessToken != null) {
 			continueWithRequest(config, accessToken, request, next);
@@ -63,7 +63,9 @@ function obtainToken(request: express.Request, response: express.Response, oauth
 	};
 
 	return oauthClient.authorizationCode.getToken(tokenConfig)
-		.then(result => oauthClient.accessToken.create(result))
+		.then(result => {
+			return oauthClient.accessToken.create(result);
+		})
 		.catch(error => response.status(200).json({
 				status: connector.clientTypes.ResultStatus.Failure,
 				error: normalizeError(error)

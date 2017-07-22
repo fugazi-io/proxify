@@ -63,6 +63,12 @@ function init(descriptorFileName: string, descriptor: connector.descriptors.Root
 	app.use(corsMiddleware);
 	app.options("*", corsMiddleware);
 
+	app.use("/favicon.ico", (req, res) => {
+		res.status(404).json({
+			status: connector.clientTypes.ResultStatus.Failure,
+			error: "not found"});
+	});
+
 	app.use(descriptorMiddleware(descriptorFileName, descriptor));
 
 	if (program.oauth) {

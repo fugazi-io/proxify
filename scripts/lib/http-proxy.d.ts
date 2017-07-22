@@ -11,6 +11,7 @@ declare module "http-proxy" {
 
 	interface Options {
 		target: string;
+		secure: boolean
 	}
 
 	declare function createProxyServer(options: Options): ProxyServer;
