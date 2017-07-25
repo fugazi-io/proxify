@@ -2,12 +2,14 @@
  * Created by ehoggeg on 14/07/2017.
  */
 
+import { readFileSync } from "fs";
 import * as express from "express";
 import * as oAuth2 from "simple-oauth2";
 
 import * as connector from "@fugazi/connector";
 
 const REDIRECT_URI_PATH = "/oauth2/authorization-callback";
+const HTML_FILE = readFileSync("../../public/oAuth2ResponseDialog.html", "utf-8");
 let BASE_URL: string;
 
 export type OAuthConfig = {
@@ -37,7 +39,7 @@ export function middleware(baseUrl: string, config: OAuthConfig) {
 		if (request.method === "GET" && request.path === REDIRECT_URI_PATH) {
 			obtainToken(request, response, oauthClient).then(token => {
 				accessToken = token;
-				response.status(200).json({ message: "yay" });
+				response.status(200).send(HTML_FILE);
 			});
 		} else if (accessToken != null) {
 			continueWithRequest(config, accessToken, request, next);
