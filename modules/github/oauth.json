@@ -1,0 +1,14 @@
+{
+	"client": {
+		"id": "CLIENT_ID",
+		"secret": "CLIENT_SECRET"
+	},
+	"auth": {
+		"authorizeHost": "http://github.com",
+		"authorizePath": "/login/oauth/authorize",
+		"tokenHost": "https://github.com",
+		"tokenPath": "/login/oauth/access_token"
+	},
+	"requestParamName": "access_token",
+	"scope": "COMMA_DELIMITED_STRING_OR_STRING_ARRAY"
+}

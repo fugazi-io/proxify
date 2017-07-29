@@ -1,0 +1,14 @@
+{
+	"client": {
+		"id": "CLIENT_ID",
+		"secret": "CLIENT_SECRET"
+	},
+	"auth": {
+		"authorizeHost": "https://www.facebook.com",
+		"authorizePath": "/v2.10/dialog/oauth",
+		"tokenHost": "https://graph.facebook.com",
+		"tokenPath": "/v2.10/oauth/access_token"
+	},
+	"requestParamName": "access_token",
+	"scope": "COMMA_DELIMITED_STRING_OR_STRING_ARRAY"
+}

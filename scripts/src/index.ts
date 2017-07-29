@@ -21,7 +21,7 @@ import express = require("express");
 import bodyParser = require("body-parser");
 
 import { middleware as proxyMiddleware } from "./middleware/proxy";
-import { middleware as oAuth2Middleware } from "./middleware/oauth2";
+import { middleware as oAuth2Middleware, OAuthConfig } from "./middleware/oauth2";
 import { middleware as descriptorMiddleware } from "./middleware/descriptor";
 
 const pjson = require("../../package.json");
@@ -71,17 +71,18 @@ function init(descriptorFileName: string, descriptor: connector.descriptors.Root
 
 	app.use(descriptorMiddleware(descriptorFileName, descriptor));
 
+	const remoteOrigin = descriptor.remote!.origin;
+	descriptor.remote!.origin = listenUrl;
+
 	if (program.oauth) {
 		app.use(bodyParser.json());
 		app.use(bodyParser.urlencoded({ extended: true }));
 
 		const oAuth2Config = JSON.parse(readFileSync(program.oauth, "utf-8"));
-		app.use(oAuth2Middleware(`http://${ listenHost }:${ listenPort }/`, oAuth2Config));
+		app.use(oAuth2Middleware(`http://${ listenHost }:${ listenPort }/`, remoteOrigin, oAuth2Config));
+	} else {
+		app.use(proxyMiddleware(remoteOrigin));
 	}
-
-	const remoteOrigin = descriptor.remote!.origin;
-	descriptor.remote!.origin = listenUrl;
-	app.use(proxyMiddleware(remoteOrigin));
 
 	app.listen(listenPort, listenHost, () => {
 		console.log(`server started, listening to ${ listenHost }:${ listenPort }`);

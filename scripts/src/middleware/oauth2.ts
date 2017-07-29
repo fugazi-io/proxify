@@ -5,12 +5,17 @@
 import { readFileSync } from "fs";
 import * as express from "express";
 import * as oAuth2 from "simple-oauth2";
+import * as URL from "url";
+import * as httpRequest from "request";
 
 import * as connector from "@fugazi/connector";
 
 const REDIRECT_URI_PATH = "/oauth2/authorization-callback";
 const HTML_FILE = readFileSync("../../public/oAuth2ResponseDialog.html", "utf-8");
-let BASE_URL: string;
+let LOCAL_URL: string,
+	REMOTE_URL: string,
+	CONFIG: OAuthConfig,
+	TOKEN: oAuth2.AccessToken | undefined;
 
 export type OAuthConfig = {
 	client: {
@@ -29,20 +34,20 @@ export type OAuthConfig = {
 	requestParamName?: string;
 }
 
-export function middleware(baseUrl: string, config: OAuthConfig) {
-	BASE_URL = baseUrl;
+export function middleware(localUrl: string, remoteUrl: string, config: OAuthConfig) {
+	LOCAL_URL = localUrl;
+	REMOTE_URL = remoteUrl;
+	CONFIG = config;
 
 	const oauthClient = createOAuthClient(config);
-	let accessToken: oAuth2.AccessToken | null = null;
 
 	return function handler(request: express.Request, response: express.Response, next: express.NextFunction) {
 		if (request.method === "GET" && request.path === REDIRECT_URI_PATH) {
 			obtainToken(request, response, oauthClient).then(token => {
-				accessToken = token;
-				response.status(200).send(HTML_FILE);
+				TOKEN = token;
 			});
-		} else if (accessToken != null) {
-			continueWithRequest(config, accessToken, request, next);
+		} else if (TOKEN) {
+			continueWithRequest(request, response);
 		} else {
 			startAuthenticationFlow(response, oauthClient, getScope(config));
 		}
@@ -58,6 +63,7 @@ function createOAuthClient(config: OAuthConfig): oAuth2.OAuthClient {
 }
 
 function obtainToken(request: express.Request, response: express.Response, oauthClient: oAuth2.OAuthClient): PromiseLike<oAuth2.AccessToken> {
+	console.log(request.url);
 	const code = request.query.code as string;
 	const tokenConfig = {
 		code,
@@ -66,7 +72,9 @@ function obtainToken(request: express.Request, response: express.Response, oauth
 
 	return oauthClient.authorizationCode.getToken(tokenConfig)
 		.then(result => {
-			return oauthClient.accessToken.create(result);
+			const token = oauthClient.accessToken.create(result);
+			response.status(200).send(HTML_FILE);
+			return token;
 		})
 		.catch(error => response.status(200).json({
 				status: connector.clientTypes.ResultStatus.Failure,
@@ -74,22 +82,85 @@ function obtainToken(request: express.Request, response: express.Response, oauth
 			} as connector.clientTypes.FailResult));
 }
 
-function continueWithRequest(config: OAuthConfig, accessToken: oAuth2.AccessToken, request: express.Request, next: express.NextFunction) {
-		console.log("token: ", (accessToken.token as any).access_token);
-	if (config.requestHeaderName) {
-		request.headers[config.requestHeaderName] = (accessToken.token as any).access_token;
-	} else if (config.requestParamName) {
-		switch (request.method) {
-			case "GET":
-				request.query[config.requestParamName] = (accessToken.token as any).access_token;
-				break;
+function continueWithRequest(originalRequest: express.Request, originalResponse: express.Response) {
+	const options = getOAuthRequestOptions(originalRequest);
 
-			case "POST":
-				request.body[config.requestParamName] = (accessToken.token as any).access_token;
+	httpRequest(options, (error, response, body) => {
+		let status: number;
+		let errorMessage: string | undefined;
+
+		if (error) {
+			status = 400;
+			errorMessage = normalizeError(error);
+		} else {
+			status = response.statusCode!;
+			if (status.toString().charAt(0) !== "2") {
+				errorMessage = normalizeError(body);
+			}
 		}
+
+		if (errorMessage) {
+			originalResponse.status(status).json({
+				status: connector.clientTypes.ResultStatus.Failure,
+				error: errorMessage
+			});
+		} else {
+			let data: any = body;
+
+			if (typeof body === "string") {
+				try {
+					data = JSON.parse(body);
+				} catch (e) {}
+			}
+
+			originalResponse.status(200).json({
+				status: connector.clientTypes.ResultStatus.Success,
+				value: data
+			});
+		}
+	});
+}
+
+function getOAuthRequestOptions(originalRequest: express.Request): httpRequest.CoreOptions & httpRequest.UrlOptions {
+	const url = URL.parse(`${ originalRequest.protocol }://${ originalRequest.hostname }` + originalRequest.path);
+	let path = url.pathname;
+	let querystring = url.search;
+
+	if (CONFIG.requestParamName) {
+		if (!querystring || querystring === "") {
+			querystring = "?";
+		} else {
+			querystring += "&";
+		}
+
+		querystring += `${ CONFIG.requestParamName }=${ (TOKEN!.token as any).access_token }`;
 	}
 
-	return next();
+	const options = {
+		headers: {
+			"User-Agent": "fugazi proxify"
+		},
+		url: REMOTE_URL,
+		method: originalRequest.method
+	} as httpRequest.CoreOptions & httpRequest.UrlOptions;
+
+	if (!(options.url as string).endsWith("/")) {
+		options.url += "/";
+	}
+
+	if (path!.startsWith("/")) {
+		path = path!.substring(1);
+	}
+
+	options.url += path! + querystring;
+
+	if (CONFIG.requestHeaderName) {
+		options.headers![CONFIG.requestHeaderName] = (TOKEN!.token as any).access_token;
+	}
+
+	//TODO: handle POST data
+
+	return options;
 }
 
 function startAuthenticationFlow(response: express.Response, oauthClient: oAuth2.OAuthClient, scope: string) {
@@ -104,9 +175,9 @@ function startAuthenticationFlow(response: express.Response, oauthClient: oAuth2
 }
 
 function redirectUri() {
-	let result = BASE_URL;
+	let result = LOCAL_URL;
 
-	if (!BASE_URL.endsWith("/")) {
+	if (!LOCAL_URL.endsWith("/")) {
 		result += "/";
 	}
 
@@ -120,6 +191,10 @@ function redirectUri() {
 }
 
 function getScope(config: OAuthConfig): string {
+	if (!config.scope) {
+		return "";
+	}
+
 	if (typeof config.scope === "string") {
 		return config.scope;
 	}
@@ -128,6 +203,10 @@ function getScope(config: OAuthConfig): string {
 }
 
 function normalizeError(error: any): string {
+	if (!error) {
+		return "unknown error";
+	}
+
 	if (typeof error === "string") {
 		return error;
 	}
