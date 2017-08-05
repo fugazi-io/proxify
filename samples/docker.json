@@ -1,0 +1,34 @@
+{
+  "name": "samples.docker",
+  "title": "Docker sample",
+  "descriptions": "",
+  "remote": {
+    "origin": "http://localhost:1234"
+  },
+  "commands": {
+    "version": {
+      "returns": "map",
+      "syntax": ["which docker is it"],
+      "handler": {
+        "method": "GET",
+        "endpoint": "/version"
+      }
+    },
+    "images": {
+      "returns": "list",
+      "syntax": ["list images", "images"],
+      "handler": {
+        "method": "GET",
+        "endpoint": "/images/json"
+      }
+    },
+    "create": {
+      "returns": "map",
+      "syntax": ["create container (Image: string)"],
+      "handler": {
+        "method": "POST",
+        "endpoint": "/containers/create"
+      }
+    }
+  }
+}
