@@ -8,7 +8,7 @@
   "commands": {
     "version": {
       "returns": "map",
-      "syntax": ["which docker is it"],
+      "syntax": ["which docker version"],
       "handler": {
         "method": "GET",
         "endpoint": "/version"
@@ -22,12 +22,76 @@
         "endpoint": "/images/json"
       }
     },
+    "containers": {
+      "returns": "list",
+      "syntax": ["list containers", "containers"],
+      "handler": {
+        "method": "GET",
+        "endpoint": "/containers/json"
+      }
+    },
     "create": {
       "returns": "map",
-      "syntax": ["create container (Image: string)"],
+      "syntax": ["create container (Image string)"],
       "handler": {
         "method": "POST",
         "endpoint": "/containers/create"
+      }
+    },
+    "inspect": {
+      "returns": "map",
+      "syntax": ["inspect container (idOrName string)"],
+      "handler": {
+        "method": "GET",
+        "endpoint": "/containers/{ idOrName }/json"
+      }
+    },
+    "start": {
+      "returns": "void",
+      "syntax": ["start container (idOrName string)"],
+      "handler": {
+        "method": "POST",
+        "endpoint": "/containers/{ idOrName }/start"
+      }
+    },
+    "stop": {
+      "returns": "void",
+      "syntax": ["stop container (idOrName string)"],
+      "handler": {
+        "method": "POST",
+        "endpoint": "/containers/{ idOrName }/stop"
+      }
+    },
+    "pause": {
+      "returns": "void",
+      "syntax": ["pause container (idOrName string)"],
+      "handler": {
+        "method": "POST",
+        "endpoint": "/containers/{ idOrName }/pause"
+      }
+    },
+    "unpause": {
+      "returns": "void",
+      "syntax": ["unpause container (idOrName string)"],
+      "handler": {
+        "method": "POST",
+        "endpoint": "/containers/{ idOrName }/unpause"
+      }
+    },
+    "kill": {
+      "returns": "void",
+      "syntax": ["kill container (idOrName string)"],
+      "handler": {
+        "method": "POST",
+        "endpoint": "/containers/{ idOrName }/kill"
+      }
+    },
+    "delete": {
+      "returns": "void",
+      "syntax": ["delete container (idOrName string)"],
+      "handler": {
+        "method": "DELETE",
+        "endpoint": "/containers/{ idOrName }"
       }
     }
   }
