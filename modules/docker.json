@@ -1,9 +1,8 @@
 {
-	"name": "samples.docker",
-	"title": "Docker sample",
-	"descriptions": "",
+	"name": "docker",
+	"title": "Docker",
 	"remote": {
-		"origin": "http://localhost:1234"
+		"origin": "BASE_URL"
 	},
 	"commands": {
 		"version": {
