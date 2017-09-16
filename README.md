@@ -48,13 +48,29 @@ Either a url or a path to a file to a [root module descriptor](https://github.co
  * **--listen-port**: The port to which proxify will bind to, default is 33334
 
 
-## Docker Module
+## Predefined Modules
+Few REST based Descriptors are provided "out of the box" and can be used right away,
+or serve for reference and basis for more customizations.
+
+The modules are located under _modules_ directory.
+
+To run a module, replace the _BASE_URL_ placeholder for remote.origin,
+with the actual url of your server, e.g. _http://localhost:1234_.
+
+#### Docker Module
 A Docker descriptor to interact with the REST API of a Docker engine is
 provided under _modules/docker.json_.
+```bash
+npm start [OPTIONS] modules/docker.json
+```
 
-To run it, replace the _BASE_URL_ placeholder for  remote.origin,
-with the actual url of your Docker engine, e.g.
-_http://localhost:1234_.
+#### Jenkins Module
+A Jenkins descriptor to interact with the REST API of a Jenkins server is
+provided under _modules/jenkins.json_.
+```bash
+npm start [OPTIONS] modules/jenkins.json
+```
+
 
 ## Example
 Let's take an example of a (very) simple http based API for a music database with the following endpoints:
