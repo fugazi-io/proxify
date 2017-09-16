@@ -11,7 +11,7 @@ and so every request made must be served from the same host as the one that fuga
 That can be bypassed using CORS, or by hosting the [fugazi proxy-frame](https://github.com/fugazi-io/webclient/blob/master/html/proxyframe.html), but in some cases changing the configuration 
 of the server which exposes the API isn't easy, or against policies.
 
-By running proxify on the local machine, all the API is "proxyed" with CORS headers and can be loaded into 
+By running proxify on the local machine, the entire API is "proxied" with CORS headers and can be loaded into 
 the fugazi terminal.
 
 ## Installation
@@ -46,10 +46,15 @@ Either a url or a path to a file to a [root module descriptor](https://github.co
 #### Options
  * **--listen-host**: The host to which proxify will bind to, default is localhost
  * **--listen-port**: The port to which proxify will bind to, default is 33334
- 
-## Contact
-Feel free to [create issues](https://github.com/fugazi-io/proxify/issues) if you're running into trouble, 
-and welcome to ask any question in [our gitter](https://gitter.im/fugazi-io/Lobby).
+
+
+## Docker Module
+A Docker descriptor to interact with the REST API of a Docker engine is
+provided under _modules/docker.json_.
+
+To run it, replace the _BASE_URL_ placeholder for  remote.origin,
+with the actual url of your Docker engine, e.g.
+_http://localhost:1234_.
 
 ## Example
 Let's take an example of a (very) simple http based API for a music database with the following endpoints:
@@ -151,3 +156,8 @@ get all artists
 genre 1243tg
 etc
 ```
+
+
+## Contact
+Feel free to [create issues](https://github.com/fugazi-io/proxify/issues) if you're running into trouble, 
+and welcome to ask any question in [our gitter](https://gitter.im/fugazi-io/Lobby).
