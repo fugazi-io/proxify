@@ -1,0 +1,16 @@
+{
+	"name": "fb.graph.api",
+	"remote": {
+		"origin": "https://graph.facebook.com",
+		"base": "/v2.10/"
+	},
+	"commands": {
+		"myrepos": {
+			"syntax": "me",
+			"returns": "map",
+			"handler": {
+				"endpoint": "/me"
+			}
+		}
+	}
+}

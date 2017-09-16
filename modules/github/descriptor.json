@@ -1,0 +1,16 @@
+{
+	"name": "my-test",
+	"remote": {
+		"origin": "https://api.github.com",
+		"base": "/"
+	},
+	"commands": {
+		"myrepos": {
+			"syntax": "my repos",
+			"returns": "list<map>",
+			"handler": {
+				"endpoint": "/user/repos"
+			}
+		}
+	}
+}
