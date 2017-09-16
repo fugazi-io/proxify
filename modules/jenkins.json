@@ -3,7 +3,7 @@
     "title": "Jenkins sample",
     "description": "",
     "remote": {
-     "origin": BASE_URL,
+     "origin": "BASE_URL",
       "auth": "basic"
     },
     "commands": {
@@ -45,8 +45,7 @@
             "handler": {
                 "method": "GET",
                 "endpoint": "/job/{ jobName }/job/{ jobName }/{ buildNumber }/git/api/json?pretty=true&tree=lastBuiltRevision[branch[SHA1]]"
-
-            },
+            }
         },
         "buildJob": {
             "returns": "map",
