@@ -76,10 +76,12 @@ function init(rootDescriptor: connector.descriptors.RootModule) {
 	createAndStartHttpServer();
 }
 
-function writeCorsHeaders(response: http.ServerResponse) {
-	response.setHeader("Access-Control-Allow-Origin", "*");
-	response.setHeader("Access-Control-Allow-Methods", "POST, PUT, DELETE, GET, OPTIONS");
-	response.setHeader("Access-Control-Allow-Headers", "Content-Type");
+function writeCorsHeaders(request: http.IncomingMessage, response: http.ServerResponse) {
+	const allowedHeaders = request.headers["access-control-request-headers"] || "";
+
+	response.setHeader("Access-Control-Allow-Origin", (request.headers["origin"] as string) || "*");
+	response.setHeader("Access-Control-Allow-Methods", (request.headers["access-control-request-method"] as string || ""));
+	response.setHeader("Access-Control-Allow-Headers", typeof allowedHeaders === "string" ? allowedHeaders : allowedHeaders.join(","));
 }
 
 function createAndStartProxy() {
@@ -88,18 +90,18 @@ function createAndStartProxy() {
 	});
 
 	proxy.on("proxyRes", (proxyRes, request, response) => {
-		writeCorsHeaders(response);
+		writeCorsHeaders(request, response);
 	});
 }
 
 function createAndStartHttpServer() {
 	server = http.createServer((request, response) => {
 		if (request.method === "OPTIONS") {
-			writeCorsHeaders(response);
+			writeCorsHeaders(request, response);
 			response.writeHead(200);
 			response.end();
 		} else if (request.url === "/" + descriptorFileName) {
-			writeCorsHeaders(response);
+			writeCorsHeaders(request, response);
 			response.writeHead(200, { "Content-Type": "application/json" });
 			response.end(JSON.stringify(descriptor));
 		} else {
