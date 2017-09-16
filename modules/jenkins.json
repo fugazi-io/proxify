@@ -57,7 +57,7 @@
     },
     "buildJob": {
       "returns": "map",
-      "syntax": ["build (jobName string) now using "],
+      "syntax": ["build (jobName string) now"],
       "handler": {
         "method": "POST",
         "endpoint": "/job/{ jobName }/job/{ jobName }/build?delay=0sec"
